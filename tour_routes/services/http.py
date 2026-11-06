@@ -6,7 +6,7 @@ from urllib.request import Request, urlopen
 
 
 class JsonHttpClient:
-    user_agent = "explora-plus-tour-routes/1.0"
+    user_agent = "explora-plus-tour-routes/1.0 (+https://github.com/EXPLORA-PLUS)"
 
     def get_json(
         self,

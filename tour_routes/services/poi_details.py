@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unicodedata
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 
@@ -9,7 +10,12 @@ from core.domain import DETAIL_STATUS_COMPLETE, DETAIL_STATUS_ERROR, DETAIL_STAT
 from places.catalog import ensure_place_primary_image
 from places.models import Place
 
+from tour_routes.types import GeoPoint
+
+from .geometry import haversine_distance_m
 from .http import JsonHttpClient
+
+NAME_SEARCH_MAX_DISTANCE_M = 3000
 
 
 class TourRoutePoiDetailFetcher:
@@ -53,10 +59,17 @@ class TourRoutePoiDetailFetcher:
                 )
                 image_url = image_url or self._build_wikidata_image_url(wikidata_payload)
 
-            if not wikipedia_title:
+            # Busca por nome so para pontos culturais/parques: restaurantes e cafes
+            # quase nunca tem artigo proprio e o primeiro resultado vira lixo.
+            found_by_name = False
+            if not wikipedia_title and place.category.slug != "food":
                 wikipedia_title = self._search_wikipedia_by_name(place.name)
+                found_by_name = wikipedia_title is not None
 
             summary_payload = self._fetch_wikipedia_summary(wikipedia_title)
+            if found_by_name and not _summary_is_near_place(summary_payload, place):
+                summary_payload = None
+                wikipedia_title = None
             if summary_payload:
                 raw_payload["wikipedia_summary"] = summary_payload
                 summary = summary or summary_payload.get("extract") or ""
@@ -179,7 +192,7 @@ class TourRoutePoiDetailFetcher:
                 results = (payload.get("query") or {}).get("search") or []
                 if results:
                     title = results[0].get("title")
-                    if title:
+                    if title and _titles_match(name, title):
                         return f"{lang}:{title}"
             except (HTTPError, URLError, TimeoutError, ValueError):
                 continue
@@ -248,3 +261,38 @@ class TourRoutePoiDetailFetcher:
 
 def build_poi_detail_fetcher() -> TourRoutePoiDetailFetcher:
     return TourRoutePoiDetailFetcher()
+
+
+def _normalize_name(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    without_accents = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join("".join(c if c.isalnum() else " " for c in without_accents).split())
+
+
+def _titles_match(name: str, title: str) -> bool:
+    # Aceita o artigo so quando o titulo e o proprio nome do lugar (com ou sem
+    # complemento, ex.: "Japan House" -> "Japan House Sao Paulo").
+    normalized_name = _normalize_name(name)
+    normalized_title = _normalize_name(title.split(" (")[0])
+    if not normalized_name or not normalized_title:
+        return False
+    if normalized_title.startswith(normalized_name):
+        return True
+    return normalized_name.startswith(normalized_title) and (
+        len(normalized_title) >= 0.8 * len(normalized_name)
+    )
+
+
+def _summary_is_near_place(summary_payload: dict | None, place: Place) -> bool:
+    # Artigo achado so pelo nome precisa ser deste lugar: sem coordenadas
+    # (pessoa, conceito) ou longe demais (homonimo em outra cidade) e descartado.
+    if not summary_payload or summary_payload.get("type") == "disambiguation":
+        return False
+    coordinates = summary_payload.get("coordinates") or {}
+    if "lat" not in coordinates or "lon" not in coordinates or place.location is None:
+        return False
+    distance_m = haversine_distance_m(
+        GeoPoint(lat=float(coordinates["lat"]), lng=float(coordinates["lon"])),
+        GeoPoint(lat=place.location.y, lng=place.location.x),
+    )
+    return distance_m <= NAME_SEARCH_MAX_DISTANCE_M
