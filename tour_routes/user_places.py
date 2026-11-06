@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from core.domain import ROUTE_STOP_STATE_ACTIVE, ROUTE_STOP_STATE_EXCLUDED
 from places.catalog import get_place_by_stop_id, upsert_places_from_route_payload
+from places.cities import ensure_cities
 from places.models import UserPlaceState
 
 from .models import TourRoute
@@ -134,7 +135,11 @@ def build_user_place_library(*, user) -> list[dict]:
         .filter(user=user)
         .order_by("-last_seen_at", "-id")
     )
-    for state in queryset:
+    states = list(queryset)
+    # Garante a cidade de todo lugar listado (normalmente ja veio do
+    # preenchimento em segundo plano feito ao gerar a rota).
+    ensure_cities(state.place for state in states if not state.place.city)
+    for state in states:
         stop_id = state.place.source_ref or state.place.slug
         payloads.append(
             {
@@ -143,6 +148,7 @@ def build_user_place_library(*, user) -> list[dict]:
                 "category": state.place.category.slug,
                 "image_url": state.place.primary_image_url,
                 "address": state.place.address,
+                "city": state.place.city,
                 "summary": state.place.summary or state.place.description,
                 "is_visited": state.is_visited,
                 "is_in_current_route": stop_id in active_lookup,

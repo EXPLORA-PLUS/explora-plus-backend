@@ -27,3 +27,6 @@ PASSWORD_HASHERS = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Sem rede nos testes: a cidade dos lugares nao e geocodificada.
+PLACE_CITY_LOOKUP_ENABLED = False

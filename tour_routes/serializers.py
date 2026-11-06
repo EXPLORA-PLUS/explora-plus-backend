@@ -99,6 +99,7 @@ class UserTourPlaceSerializer(serializers.Serializer):
     category = serializers.CharField()
     image_url = serializers.URLField(allow_null=True)
     address = serializers.CharField(allow_blank=True)
+    city = serializers.CharField(allow_blank=True)
     summary = serializers.CharField(allow_blank=True)
     is_visited = serializers.BooleanField()
     is_in_current_route = serializers.BooleanField()

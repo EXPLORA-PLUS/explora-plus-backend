@@ -39,6 +39,7 @@ class Place(models.Model):
     source_ref = models.CharField(max_length=64, unique=True, null=True, blank=True)
     location = models.PointField(geography=True, srid=4326)
     address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=120, blank=True, db_index=True)
     opening_hours = models.CharField(max_length=255, blank=True)
     price_cents = models.PositiveIntegerField(null=True, blank=True)
     currency = models.CharField(max_length=3, default="BRL")

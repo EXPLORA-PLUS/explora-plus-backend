@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from core.domain import DETAIL_STATUS_PENDING, ROUTE_STOP_STATE_EXCLUDED, ROUTE_STOP_STATE_VISITED
 from places.catalog import upsert_places_from_route_payload, upsert_places_from_route_pois
+from places.cities import ensure_cities_in_background
 from places.models import Place
 from .authentication import OptionalJWTAuthentication
 from .models import RouteSearchCache, TourRoute
@@ -78,7 +79,10 @@ class TourRouteView(APIView):
                 return Response({"detail": str(exc)}, status=exc.status_code)
 
             base_response_payload = serialize_result(result, map_payload, saved_route_id=None)
-            upsert_places_from_route_pois(result.places_to_pass)
+            places_by_stop_id = upsert_places_from_route_pois(result.places_to_pass)
+            ensure_cities_in_background(
+                [place.pk for place in places_by_stop_id.values() if not place.city]
+            )
             cache = create_or_update_cache(
                 cache_key=cache_key,
                 canonical_payload=canonical_payload,
