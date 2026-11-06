@@ -24,10 +24,13 @@ class PlaceAdmin(gis_admin.GISModelAdmin):
         "source",
         "source_ref",
         "is_curated",
+        "is_sponsored",
+        "event_start_at",
+        "event_end_at",
         "is_active",
         "updated_at",
     )
-    list_filter = ("category", "source", "is_curated", "is_active")
+    list_filter = ("category", "source", "is_curated", "is_sponsored", "is_active")
     search_fields = ("name", "slug", "source_ref", "address", "wikidata_id")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [PlaceImageInline]
@@ -43,6 +46,7 @@ class PlaceAdmin(gis_admin.GISModelAdmin):
                     "source",
                     "source_ref",
                     "is_curated",
+                    "is_sponsored",
                     "is_active",
                 )
             },
@@ -66,7 +70,13 @@ class PlaceAdmin(gis_admin.GISModelAdmin):
                 )
             },
         ),
-        ("Event (optional)", {"fields": ("event_start_at", "event_end_at")}),
+        (
+            "Event (optional)",
+            {
+                "fields": ("event_start_at", "event_end_at"),
+                "description": "Preencha inicio e fim para o lugar virar um evento temporario.",
+            },
+        ),
         ("Audit", {"fields": ("created_at", "updated_at")}),
     )
 

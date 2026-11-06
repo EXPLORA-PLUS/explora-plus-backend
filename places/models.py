@@ -55,6 +55,8 @@ class Place(models.Model):
     raw_payload = models.JSONField(default=dict, blank=True)
     details_fetched_at = models.DateTimeField(null=True, blank=True)
     is_curated = models.BooleanField(default=False)
+    # Parceiro pago: ganha prioridade na escolha das paradas e selo no app.
+    is_sponsored = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
