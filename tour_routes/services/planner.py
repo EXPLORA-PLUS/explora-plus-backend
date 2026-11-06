@@ -12,7 +12,7 @@ from tour_routes.search_preferences import TourRouteSearchPreferences
 from tour_routes.types import GeoPoint, ResolvedPoint, RoutePath, RoutePoi, TourRouteResult
 
 from .curated_pois import CuratedPoiSource, build_stop_id, merge_with_curated
-from .exceptions import PoiSearchError
+from .exceptions import PoiSearchError, RouteProviderError
 from .geocoding import NominatimGeocoder
 from .geometry import polyline_distance_m
 from .map_builder import GeoJsonMapBuilder
@@ -180,6 +180,21 @@ class TourRoutePlanner:
         destination: ResolvedPoint,
         places_to_pass: list[RoutePoi],
     ) -> RoutePath:
+        # Segue as ruas passando pelas paradas; se o roteador falhar, cai para
+        # linhas retas entre os pontos para a rota nao quebrar.
+        try:
+            return self.router.route(
+                origin,
+                destination,
+                waypoints=[
+                    ResolvedPoint(label=place.name, location=place.location)
+                    for place in places_to_pass
+                ],
+                error_message="Nao foi possivel calcular a rota turistica.",
+            )
+        except RouteProviderError:
+            pass
+
         coordinates = [
             origin.location,
             *(place.location for place in places_to_pass),

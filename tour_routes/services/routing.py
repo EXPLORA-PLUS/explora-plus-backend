@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from urllib.error import HTTPError, URLError
 
 from tour_routes.types import GeoPoint, ResolvedPoint, RoutePath
@@ -9,10 +10,13 @@ from .http import JsonHttpClient
 
 
 class OsrmWalkingRouter:
-    endpoint = "https://router.project-osrm.org"
+    # O demo publico do OSRM (router.project-osrm.org) so tem perfil de carro e
+    # ignora o "foot" da URL; o servidor da FOSSGIS roteia a pe de verdade.
+    endpoint = "https://routing.openstreetmap.de/routed-foot"
 
     def __init__(self, client: JsonHttpClient | None = None):
         self.client = client or JsonHttpClient()
+        self.endpoint = os.environ.get("OSRM_ENDPOINT", self.endpoint)
 
     def route(
         self,
