@@ -370,6 +370,9 @@ def _should_refresh_cache(cache: RouteSearchCache) -> bool:
 
 
 def _should_fetch_poi_detail(place) -> bool:
+    if place.is_curated:
+        # Conteudo curado (Passaporte) ja vem completo do seed.
+        return False
     if place.details_fetched_at is None:
         return True
     if place.detail_status == DETAIL_STATUS_PENDING:

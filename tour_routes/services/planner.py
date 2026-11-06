@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from dataclasses import replace
 
 from tour_routes.constants import (
@@ -12,6 +11,7 @@ from tour_routes.constants import (
 from tour_routes.search_preferences import TourRouteSearchPreferences
 from tour_routes.types import GeoPoint, ResolvedPoint, RoutePath, RoutePoi, TourRouteResult
 
+from .curated_pois import CuratedPoiSource, build_stop_id, merge_with_curated
 from .exceptions import PoiSearchError
 from .geocoding import NominatimGeocoder
 from .geometry import polyline_distance_m
@@ -32,12 +32,14 @@ class TourRoutePlanner:
         poi_searcher: OverpassPoiSearcher | None = None,
         poi_selector: PoiSelector | None = None,
         map_builder: GeoJsonMapBuilder | None = None,
+        curated_source: CuratedPoiSource | None = None,
     ):
         self.geocoder = geocoder or NominatimGeocoder()
         self.router = router or OsrmWalkingRouter()
         self.poi_searcher = poi_searcher or OverpassPoiSearcher()
         self.poi_selector = poi_selector or PoiSelector()
         self.map_builder = map_builder or GeoJsonMapBuilder()
+        self.curated_source = curated_source or CuratedPoiSource()
 
     def plan(
         self,
@@ -58,6 +60,13 @@ class TourRoutePlanner:
             )
         except PoiSearchError:
             poi_candidates = []
+
+        curated_candidates = self.curated_source.search(
+            direct_route_path,
+            enabled_categories=search_preferences.enabled_categories,
+            max_distance_from_route_m=search_preferences.max_search_radius_m,
+        )
+        poi_candidates = merge_with_curated(curated_candidates, poi_candidates)
 
         selected_candidates = self.poi_selector.select(
             poi_candidates,
@@ -310,11 +319,7 @@ class TourRoutePlanner:
         category: str,
         location: GeoPoint,
     ) -> str:
-        raw = (
-            f"{name.casefold()}|{category}|"
-            f"{location.lat:.6f}|{location.lng:.6f}"
-        )
-        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+        return build_stop_id(name=name, category=category, location=location)
 
 
 def build_default_planner() -> TourRoutePlanner:
