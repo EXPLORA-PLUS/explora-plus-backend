@@ -139,16 +139,18 @@ def _upsert_place(
         ("name", name),
         ("source", source),
         ("location", Point(lng, lat, srid=4326)),
-        ("osm_type", osm_type),
-        ("osm_id", osm_id),
-        ("wikidata_id", wikidata_id),
-        ("wikipedia_title", wikipedia_title),
     ):
         if getattr(place, field_name) != value:
             setattr(place, field_name, value)
             update_fields.append(field_name)
 
+    # Identificadores externos so sao sobrescritos quando vierem preenchidos:
+    # o upsert a partir do payload salvo nao os carrega e os apagaria.
     for field_name, value in (
+        ("osm_type", osm_type),
+        ("osm_id", osm_id),
+        ("wikidata_id", wikidata_id),
+        ("wikipedia_title", wikipedia_title),
         ("address", address),
         ("opening_hours", opening_hours),
         ("website", website),
