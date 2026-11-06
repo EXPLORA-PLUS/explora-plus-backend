@@ -12,15 +12,18 @@ from tour_routes.search_preferences import TourRouteSearchPreferences
 from tour_routes.types import GeoPoint, ResolvedPoint, RoutePath, RoutePoi, TourRouteResult
 
 from .curated_pois import CuratedPoiSource, build_stop_id, merge_with_curated
-from .exceptions import PoiSearchError, RouteProviderError
+from .exceptions import PoiSearchError, RouteProviderError, RouteTooLongError
 from .geocoding import NominatimGeocoder
-from .geometry import polyline_distance_m
+from .geometry import haversine_distance_m, polyline_distance_m
 from .map_builder import GeoJsonMapBuilder
 from .poi_search import OverpassPoiSearcher
 from .poi_selector import PoiSelector
 from .routing import OsrmWalkingRouter
 
 FREE_WALKING_SPEED_MPS = 1.35
+# Distancia em linha reta acima da qual nao faz sentido uma rota a pe; evita
+# ficar minutos esperando roteamento/POIs de um destino geocodificado longe.
+MAX_WALKING_DISTANCE_M = 25_000
 
 
 class TourRoutePlanner:
@@ -50,6 +53,13 @@ class TourRoutePlanner:
     ):
         origin = self._resolve_endpoint(origin_input)
         destination = self._resolve_endpoint(destination_input)
+        straight_distance_m = haversine_distance_m(origin.location, destination.location)
+        if straight_distance_m > MAX_WALKING_DISTANCE_M:
+            raise RouteTooLongError(
+                "Origem e destino estao muito longe para uma rota a pe "
+                f"({straight_distance_m / 1000:.0f} km). Confira o destino: "
+                f"{destination.label}"
+            )
         direct_route_path = self.router.route(origin, destination)
 
         try:

@@ -12,3 +12,7 @@ class RouteProviderError(TourRouteError):
 
 class PoiSearchError(TourRouteError):
     status_code = 502
+
+
+class RouteTooLongError(TourRouteError):
+    status_code = 400
