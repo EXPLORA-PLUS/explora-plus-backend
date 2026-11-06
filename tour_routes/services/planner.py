@@ -78,10 +78,21 @@ class TourRoutePlanner:
         )
         poi_candidates = merge_with_curated(curated_candidates, poi_candidates)
 
+        # Eventos e patrocinados no raio sempre entram, sem disputar o trecho com
+        # os demais pontos (um evento no Museu do Cafe nao tira o museu da rota).
+        pinned_candidates = [
+            candidate
+            for candidate in poi_candidates
+            if candidate.is_sponsored or candidate.event_start_at
+        ]
         selected_candidates = self.poi_selector.select(
-            poi_candidates,
+            [candidate for candidate in poi_candidates if candidate not in pinned_candidates],
             route_distance_m=direct_route_path.distance_m,
             poi_spacing_m=search_preferences.poi_spacing_m,
+        )
+        selected_candidates = sorted(
+            [*selected_candidates, *pinned_candidates],
+            key=lambda candidate: candidate.progress_m,
         )
         selected_places = [
             self._route_poi_from_candidate(candidate) for candidate in selected_candidates
@@ -292,6 +303,9 @@ class TourRoutePlanner:
             opening_hours=candidate.opening_hours,
             address=candidate.address,
             raw_tags=candidate.raw_tags,
+            is_sponsored=candidate.is_sponsored,
+            event_start_at=candidate.event_start_at,
+            event_end_at=candidate.event_end_at,
         )
 
     def _route_poi_from_payload(self, place_payload: dict) -> RoutePoi:
@@ -316,6 +330,9 @@ class TourRoutePlanner:
             included_in_route=bool(place_payload.get("included_in_route")),
             waypoint_order=place_payload.get("waypoint_order"),
             state=place_payload.get("state", TOUR_ROUTE_STOP_STATE_ACTIVE),
+            is_sponsored=bool(place_payload.get("is_sponsored")),
+            event_start_at=place_payload.get("event_start_at"),
+            event_end_at=place_payload.get("event_end_at"),
         )
 
     def _resolved_point_from_payload(self, payload: dict) -> ResolvedPoint:

@@ -42,6 +42,9 @@ class PoiCandidate:
     opening_hours: str | None = None
     address: str | None = None
     raw_tags: dict[str, str] | None = None
+    is_sponsored: bool = False
+    event_start_at: str | None = None
+    event_end_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,10 @@ class RoutePoi:
     opening_hours: str | None = None
     address: str | None = None
     raw_tags: dict[str, str] | None = None
+    # Destaques vindos do banco: parceiro patrocinado e janela de evento (ISO 8601).
+    is_sponsored: bool = False
+    event_start_at: str | None = None
+    event_end_at: str | None = None
 
 
 @dataclass(frozen=True)

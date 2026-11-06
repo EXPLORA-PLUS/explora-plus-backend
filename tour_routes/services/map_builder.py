@@ -99,6 +99,10 @@ class GeoJsonMapBuilder:
                         "included_in_route": poi.included_in_route,
                         "distance_from_route_m": int(round(poi.distance_from_route_m)),
                         "state": poi.state,
+                        "is_sponsored": poi.is_sponsored,
+                        "is_event": poi.event_start_at is not None,
+                        "event_start_at": poi.event_start_at,
+                        "event_end_at": poi.event_end_at,
                     },
                 }
             )

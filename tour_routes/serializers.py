@@ -7,6 +7,7 @@ from places.models import Place
 from .constants import TOUR_ROUTE_STOP_STATES
 from .models import TourRoute
 from .search_preferences import TourRouteSearchPreferences
+from .services.curated_pois import isoformat_local
 from .services.map_builder import GeoJsonMapBuilder
 from .types import GeoPoint, ResolvedPoint, RoutePath, RoutePoi, TourRouteResult
 
@@ -52,6 +53,9 @@ class PlaceToPassSerializer(serializers.Serializer):
     included_in_route = serializers.BooleanField()
     waypoint_order = serializers.IntegerField(allow_null=True)
     state = serializers.ChoiceField(choices=TOUR_ROUTE_STOP_STATES)
+    is_sponsored = serializers.BooleanField()
+    event_start_at = serializers.CharField(allow_null=True)
+    event_end_at = serializers.CharField(allow_null=True)
 
 
 class RouteSummarySerializer(serializers.Serializer):
@@ -91,6 +95,10 @@ class TourRoutePoiDetailSerializer(serializers.Serializer):
     source_url = serializers.URLField(allow_null=True)
     opening_hours = serializers.CharField(allow_null=True)
     website = serializers.URLField(allow_null=True)
+    is_sponsored = serializers.BooleanField()
+    event_start_at = serializers.DateTimeField(allow_null=True)
+    event_end_at = serializers.DateTimeField(allow_null=True)
+    price_cents = serializers.IntegerField(allow_null=True)
 
 
 class UserTourPlaceSerializer(serializers.Serializer):
@@ -101,6 +109,9 @@ class UserTourPlaceSerializer(serializers.Serializer):
     address = serializers.CharField(allow_blank=True)
     city = serializers.CharField(allow_blank=True)
     summary = serializers.CharField(allow_blank=True)
+    is_sponsored = serializers.BooleanField()
+    event_start_at = serializers.DateTimeField(allow_null=True)
+    event_end_at = serializers.DateTimeField(allow_null=True)
     is_visited = serializers.BooleanField()
     is_in_current_route = serializers.BooleanField()
     is_excluded_from_current_route = serializers.BooleanField()
@@ -175,6 +186,9 @@ def serialize_result(
                     "included_in_route": poi.included_in_route,
                     "waypoint_order": poi.waypoint_order,
                     "state": poi.state,
+                    "is_sponsored": poi.is_sponsored,
+                    "event_start_at": poi.event_start_at,
+                    "event_end_at": poi.event_end_at,
                 }
                 for index, poi in enumerate(result.places_to_pass, start=1)
             ],
@@ -204,6 +218,10 @@ def serialize_poi_detail(place: Place) -> dict:
         "source_url": place.source_url or None,
         "opening_hours": place.opening_hours or None,
         "website": place.website or None,
+        "is_sponsored": place.is_sponsored,
+        "event_start_at": place.event_start_at,
+        "event_end_at": place.event_end_at,
+        "price_cents": place.price_cents,
     }
     return TourRoutePoiDetailSerializer(instance=payload).data
 
@@ -288,4 +306,7 @@ def _poi_from_stop(stop) -> RoutePoi:
         opening_hours=place.opening_hours or None,
         address=place.address or None,
         raw_tags=((place.raw_payload or {}).get("tags") or None),
+        is_sponsored=place.is_sponsored,
+        event_start_at=isoformat_local(place.event_start_at),
+        event_end_at=isoformat_local(place.event_end_at),
     )

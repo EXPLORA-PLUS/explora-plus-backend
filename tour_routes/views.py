@@ -36,6 +36,7 @@ from .search_preferences import (
     get_search_preferences_for_user,
     save_search_preferences_for_user,
 )
+from .services.curated_pois import latest_highlight_change
 from .services.exceptions import TourRouteError
 from .services.poi_details import build_poi_detail_fetcher
 from .services.planner import build_default_planner
@@ -414,7 +415,10 @@ def _should_refresh_cache(cache: RouteSearchCache) -> bool:
     route_payload = cache.route_payload or {}
     places = route_payload.get("places_to_pass") or []
     mode = route_payload.get("mode")
-    return mode == "direct_fallback" or len(places) == 0
+    if mode == "direct_fallback" or len(places) == 0:
+        return True
+    highlight_change = latest_highlight_change()
+    return highlight_change is not None and cache.updated_at < highlight_change
 
 
 def _should_fetch_poi_detail(place) -> bool:
