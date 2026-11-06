@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -249,6 +250,49 @@ class SavedTourRouteStopStateView(APIView):
             visited_stop_ids=sync_payload["visited_stop_ids"],
         )
         return Response(serialize_route_model(route))
+
+
+class SavedTourRouteFilterPreviewView(APIView):
+    """Recalcula a rota salva passando so pelas paradas das categorias pedidas.
+
+    Nao persiste nada: e o que o mapa mostra quando o usuario filtra. Sem
+    nenhuma parada na categoria, devolve o caminho direto ate o destino.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, route_id: int):
+        route = get_object_or_404(
+            TourRoute.objects.select_related("search_cache"),
+            id=route_id,
+            user=request.user,
+        )
+        categories = sorted(
+            {value for value in request.query_params.get("categories", "").split(",") if value}
+        )
+        cache_key = f"tour-route-filter:{route.id}:{route.updated_at.timestamp()}:{','.join(categories)}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        current_route_payload = serialize_route_model(route)["route"]
+        excluded_stop_ids = [
+            place["stop_id"]
+            for place in current_route_payload.get("places_to_pass", [])
+            if place.get("category") not in categories
+        ]
+        planner = build_default_planner()
+        try:
+            result, map_payload = planner.rebuild_from_payload(
+                route_payload=current_route_payload,
+                excluded_stop_ids=excluded_stop_ids,
+            )
+        except TourRouteError as exc:
+            return Response({"detail": str(exc)}, status=exc.status_code)
+
+        payload = serialize_result(result, map_payload, saved_route_id=route.id)
+        cache.set(cache_key, payload, timeout=60 * 60)
+        return Response(payload)
 
 
 class TourRoutePoiDetailView(APIView):

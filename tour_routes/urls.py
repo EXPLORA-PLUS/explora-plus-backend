@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     CurrentTourRouteView,
+    SavedTourRouteFilterPreviewView,
     SavedTourRouteStopDeleteView,
     SavedTourRouteStopStateView,
     TourRoutePoiDetailView,
@@ -26,6 +27,11 @@ urlpatterns = [
         "saved/<int:route_id>/stops/<str:stop_id>/",
         SavedTourRouteStopDeleteView.as_view(),
         name="saved-tour-route-stop-delete",
+    ),
+    path(
+        "saved/<int:route_id>/filtered/",
+        SavedTourRouteFilterPreviewView.as_view(),
+        name="saved-tour-route-filter-preview",
     ),
     path(
         "saved/<int:route_id>/stops/<str:stop_id>/state/",
